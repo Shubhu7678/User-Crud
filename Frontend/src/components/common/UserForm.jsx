@@ -1,18 +1,66 @@
 
 import { useForm } from 'react-hook-form'
-import { useSelector } from 'react-redux'
-import { addNewUser } from '../../services/operations/userApis';
+import { useDispatch, useSelector } from 'react-redux'
+import { addNewUser, updateUserData } from '../../services/operations/userApis';
+import { useEffect } from 'react';
+import { setUsers } from '../../slices/userSlice';
+import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+
 
 const UserForm = () => {
 
-    const { handleSubmit, register, formState: { errors } } = useForm();
-    const { editUser } = useSelector((state) => state.user);
+    const { handleSubmit, register, formState: { errors },setValue } = useForm();
+    const { editUser, user, users } = useSelector((state) => state.user);
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+
+    const formChanged = (data) => { 
+
+        if (data?.name !== user?.name || data?.email !== user?.email || data?.age !== user?.age) {
+
+            return true;
+        } else { 
+
+            return false;
+        }
+    }
 
     const onSubmit = async(data) => { 
 
         if (editUser) {
             
             console.log("Edit User :", data);
+
+            const isFormChanged = formChanged(data);
+
+            if (isFormChanged) {
+
+                const form = {};
+
+                if (data?.name !== user?.name) {
+
+                    form.name = data?.name;
+                }
+                if (data?.email !== user?.email) {
+
+                    form.email = data?.email;
+                }
+                if (data?.age !== user?.age) {
+
+                    form.age = data?.age;
+                }
+
+                const result = await updateUserData(user?._id, form);
+                if (result) {
+
+                    dispatch(setUsers(users.map((user) => user?._id === result?._id ? result : user)));
+                    navigate('/');
+                }
+            } else { 
+
+                toast.error("No changes made");
+            }
             
         } else { 
             
@@ -21,11 +69,22 @@ const UserForm = () => {
             const result = await addNewUser(data);
             if (result) { 
                 
-                console.log("Result : ", result);
+                dispatch(setUsers([...users, result]));
+                navigate('/');
             }
               
         }
     }
+
+    useEffect(() => { 
+
+        if (editUser) { 
+
+            setValue('name', user?.name);
+            setValue('email', user?.email);
+            setValue('age', user?.age);
+        }
+    },[editUser, user, setValue])
 
     return (
         <div className="flex justify-center mt-4" >
